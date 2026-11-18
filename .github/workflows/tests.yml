@@ -1,0 +1,61 @@
+name: 测试
+
+# 拉取私有仓库 CardFightRogue/CardFightRogue 的代码，用 Godot 无界面运行三个测试。
+# 需要在本仓库的 Settings → Secrets and variables → Actions 里配置 PRIVATE_REPO_TOKEN（见 README）。
+#
+# 注意：本仓库是公开的，运行日志任何人都能看到。
+
+on:
+  # 手动运行：Actions 页面 → 测试 → Run workflow
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 要测试的分支、标签或提交
+        default: main
+  # 由私有仓库在推送时触发（见 README 的“推送后自动运行”）
+  repository_dispatch:
+    types: [private-push]
+  # 每天北京时间 6:00 跑一次 main
+  schedule:
+    - cron: "0 22 * * *"
+
+concurrency:
+  group: tests-${{ github.event.client_payload.ref || inputs.ref || 'main' }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+  SOURCE_REPO: CardFightRogue/CardFightRogue
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 拉取私有仓库的代码
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ github.event.client_payload.ref || inputs.ref || 'main' }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: 安装 Godot ${{ env.GODOT_VERSION }}
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP/godot"
+          mv "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64" "$RUNNER_TEMP/godot/godot"
+          chmod +x "$RUNNER_TEMP/godot/godot"
+          rm godot.zip
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+
+      - name: 导入项目（生成类缓存）
+        run: godot --headless --path . --import
+
+      - name: 内容校验
+        run: godot --headless --path . -s tests/test_content.gd
+
+      - name: 规则测试
+        run: godot --headless --path . -s tests/test_rules.gd
+
+      - name: 冒烟测试
+        run: godot --headless --path . -s tests/smoke.gd
