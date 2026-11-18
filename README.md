@@ -61,7 +61,7 @@ gh secret set PRIVATE_REPO_DEPLOY_KEY --repo CardFightRogue/CardFightRogue-CI < 
   gh run download --repo CardFightRogue/CardFightRogue-CI --pattern "CardFightRogue-windows-*"
   ```
 
-Windows 版解压后双击 `CardFightRogue.exe` 即可；同目录下的 `CardFightRogue.console.exe` 是带控制台窗口的版本，排查问题时用。产物保留 14 天。
+Windows 版解压后是单个 `CardFightRogue.exe`（约 120 MB，字体和全部内容都在里面），双击即可运行，不需要安装 Godot。产物保留 14 天。
 
 > **产物是公开的。** 任何登录了 GitHub 的人都能下载，而导出的游戏包里包含全部脚本和数据，可以被解包。
 
