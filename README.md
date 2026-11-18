@@ -6,24 +6,33 @@
 
 > **运行日志是公开的。** 任何人都能在 Actions 页面看到测试输出，其中会出现私有仓库里的文件路径、测试名称和报错信息。不要在测试输出里打印不想公开的内容。
 
-## 第一次使用：配置访问令牌
+## 访问私有仓库的方式：deploy key
 
-工作流需要一个能读取私有仓库的令牌。只需配置一次。
+工作流用一把专用的 SSH 密钥拉取私有仓库的代码，已经配置好，平时不用管：
 
-1. 打开 <https://github.com/settings/personal-access-tokens/new>，创建一个 fine-grained 令牌：
-   - **Resource owner**：选 `CardFightRogue` 组织
-   - **Repository access**：Only select repositories → 只选 `CardFightRogue`
-   - **Permissions** → Repository permissions → **Contents：Read-only**（其他都不用）
-   - 有效期按需要设置，到期后要重新生成并更新
-2. 把令牌存为本仓库的密钥 `PRIVATE_REPO_TOKEN`。在命令行运行下面的命令，然后粘贴令牌：
+- 公钥登记在私有仓库的 Settings → Deploy keys，名称“CardFightRogue-CI（只读）”。它**只能读这一个仓库**，不能写，也访问不了别的仓库。
+- 私钥存在本仓库的密钥 `PRIVATE_REPO_DEPLOY_KEY` 里（Settings → Secrets and variables → Actions）。存入后任何人都读不出来，只有工作流运行时能用。
+- 它不绑定任何个人账号，也不会过期。
 
-   ```bash
-   gh secret set PRIVATE_REPO_TOKEN --repo CardFightRogue/CardFightRogue-CI
-   ```
+### 需要更换密钥时
 
-   或者在网页上：本仓库 Settings → Secrets and variables → Actions → New repository secret。
+怀疑密钥泄露，或者想定期轮换时：
 
-如果组织开启了“fine-grained 令牌需要管理员批准”，还要在组织的 Settings → Personal access tokens 里批准这个令牌。
+```bash
+ssh-keygen -t ed25519 -N "" -C "CardFightRogue-CI deploy key" -f ci_key
+```
+
+```bash
+gh repo deploy-key add ci_key.pub --repo CardFightRogue/CardFightRogue --title "CardFightRogue-CI（只读）"
+```
+
+```bash
+gh secret set PRIVATE_REPO_DEPLOY_KEY --repo CardFightRogue/CardFightRogue-CI < ci_key
+```
+
+然后删除本地的 `ci_key` 和 `ci_key.pub`，并在私有仓库的 Deploy keys 页面删掉旧的那把。
+
+组织需要允许仓库使用 deploy key（组织 Settings 里的 Deploy keys 选项），否则添加公钥时会报“Deploy keys are disabled for this repository”。
 
 ## 运行
 
@@ -39,7 +48,7 @@
 
 想让私有仓库每次推送后自动测试，需要在私有仓库里加一个很小的工作流，它只负责通知这个仓库（每次占用私有仓库几秒钟的运行时间）。
 
-1. 再创建一个 fine-grained 令牌：Repository access 只选 `CardFightRogue-CI`，Permissions 选 **Contents：Read and write**（触发 `repository_dispatch` 需要这个权限）。
+1. 打开 <https://github.com/settings/personal-access-tokens/new> 创建一个 fine-grained 令牌：Resource owner 选 `CardFightRogue` 组织，Repository access 只选 `CardFightRogue-CI`，Permissions 选 **Contents：Read and write**（触发 `repository_dispatch` 需要这个权限）。deploy key 只能用来拉代码，不能调用这个接口，所以这一步仍然要用令牌。
 2. 存为**私有仓库**的密钥 `CI_DISPATCH_TOKEN`：
 
    ```bash

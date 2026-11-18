@@ -1,7 +1,7 @@
 name: 测试
 
 # 拉取私有仓库 CardFightRogue/CardFightRogue 的代码，用 Godot 无界面运行三个测试。
-# 需要在本仓库的 Settings → Secrets and variables → Actions 里配置 PRIVATE_REPO_TOKEN（见 README）。
+# 用私有仓库的只读 deploy key 拉取代码；私钥存在本仓库的密钥 PRIVATE_REPO_DEPLOY_KEY 里（见 README）。
 #
 # 注意：本仓库是公开的，运行日志任何人都能看到。
 
@@ -37,7 +37,8 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ github.event.client_payload.ref || inputs.ref || 'main' }}
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          ssh-key: ${{ secrets.PRIVATE_REPO_DEPLOY_KEY }}
+          persist-credentials: false
 
       - name: 安装 Godot ${{ env.GODOT_VERSION }}
         run: |
