@@ -44,6 +44,27 @@ gh secret set PRIVATE_REPO_DEPLOY_KEY --repo CardFightRogue/CardFightRogue-CI < 
   gh workflow run 测试 --repo CardFightRogue/CardFightRogue-CI -f ref=main
   ```
 
+## 导出试玩版
+
+手动触发“导出试玩版”，会导出 Windows 和 Linux 两个版本，并实际启动一次 Linux 版确认没有报错。
+
+- **网页**：Actions → 导出试玩版 → Run workflow，跑完后在这次运行页面底部的 Artifacts 里下载。
+- **命令行**：
+
+  ```bash
+  gh workflow run build.yml --repo CardFightRogue/CardFightRogue-CI -f ref=main
+  ```
+
+  下载最近一次导出的 Windows 版到当前目录：
+
+  ```bash
+  gh run download --repo CardFightRogue/CardFightRogue-CI --pattern "CardFightRogue-windows-*"
+  ```
+
+Windows 版解压后双击 `CardFightRogue.exe` 即可；同目录下的 `CardFightRogue.console.exe` 是带控制台窗口的版本，排查问题时用。产物保留 14 天。
+
+> **产物是公开的。** 任何登录了 GitHub 的人都能下载，而导出的游戏包里包含全部脚本和数据，可以被解包。
+
 ## 推送后自动运行（可选）
 
 想让私有仓库每次推送后自动测试，需要在私有仓库里加一个很小的工作流，它只负责通知这个仓库（每次占用私有仓库几秒钟的运行时间）。

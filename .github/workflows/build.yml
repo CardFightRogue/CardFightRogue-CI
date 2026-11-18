@@ -1,0 +1,114 @@
+name: 导出试玩版
+
+# 手动触发：拉取私有仓库的代码，导出 Windows 和 Linux 的可玩版本，作为产物上传。
+# 运行：Actions 页面 → 导出试玩版 → Run workflow
+#
+# 注意：本仓库是公开的。产物任何登录了 GitHub 的人都能下载，
+# 而导出的游戏包里包含全部脚本和数据，可以被解包。
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 要导出的分支、标签或提交
+        default: main
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+  TEMPLATES_DIR_NAME: 4.7.2.stable
+  SOURCE_REPO: CardFightRogue/CardFightRogue
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 拉取私有仓库的代码
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ inputs.ref || 'main' }}
+          ssh-key: ${{ secrets.PRIVATE_REPO_DEPLOY_KEY }}
+          persist-credentials: false
+
+      - name: 记下提交号
+        id: src
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # 导出模板的完整包有 1.2 GB，只取用得到的三个文件并缓存起来
+      - name: 读取缓存的 Godot 和导出模板
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/godot-bin
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-windows-linux-v1
+
+      - name: 下载 Godot 和导出模板
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          mkdir -p ~/godot-bin
+          curl -fsSL -o godot.zip "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+          rm godot.zip
+
+          dest=~/.local/share/godot/export_templates/${TEMPLATES_DIR_NAME}
+          mkdir -p "$dest"
+          curl -fsSL -o templates.tpz "${base}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q -j templates.tpz \
+            templates/version.txt \
+            templates/windows_release_x86_64.exe \
+            templates/windows_release_x86_64_console.exe \
+            templates/linux_release.x86_64 \
+            -d "$dest"
+          rm templates.tpz
+          ls -la "$dest"
+
+      - name: 把 Godot 加入 PATH
+        run: echo "$HOME/godot-bin" >> "$GITHUB_PATH"
+
+      - name: 导入项目
+        run: godot --headless --path . --import
+
+      - name: 导出 Linux 版
+        run: |
+          mkdir -p build/linux
+          godot --headless --path . --export-release "Linux" build/linux/CardFightRogue.x86_64
+          test -s build/linux/CardFightRogue.x86_64
+
+      # 导出后的包和编辑器里的项目不完全一样（文件被改名、脚本被编译），
+      # 所以实际启动一次，确认内容都能加载、没有报错
+      - name: 启动导出的 Linux 版检查
+        run: |
+          chmod +x build/linux/CardFightRogue.x86_64
+          timeout 60 build/linux/CardFightRogue.x86_64 --headless --quit-after 300 2>&1 | tee run.log || true
+          if grep -E "SCRIPT ERROR|ERROR:|找不到内容|数据文件无效|跑到了房间外" run.log; then
+            echo "::error::导出的游戏启动时有错误"
+            exit 1
+          fi
+
+      - name: 导出 Windows 版
+        run: |
+          mkdir -p build/windows
+          godot --headless --path . --export-release "Windows Desktop" build/windows/CardFightRogue.exe
+          test -s build/windows/CardFightRogue.exe
+
+      - name: 上传 Windows 版
+        uses: actions/upload-artifact@v7
+        with:
+          name: CardFightRogue-windows-${{ steps.src.outputs.sha }}
+          path: build/windows/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: 上传 Linux 版
+        uses: actions/upload-artifact@v7
+        with:
+          name: CardFightRogue-linux-${{ steps.src.outputs.sha }}
+          path: build/linux/
+          retention-days: 14
+          if-no-files-found: error
