@@ -46,7 +46,7 @@ gh secret set PRIVATE_REPO_DEPLOY_KEY --repo CardFightRogue/CardFightRogue-CI < 
 
 ## 导出试玩版
 
-手动触发“导出试玩版”，会导出 Windows 和 Linux 两个版本，并实际启动一次 Linux 版确认没有报错。
+手动触发“导出试玩版”，会导出 Windows、macOS 和 Linux 三个版本，并实际启动一次 Linux 版确认没有报错。
 
 - **网页**：Actions → 导出试玩版 → Run workflow，跑完后在这次运行页面底部的 Artifacts 里下载。
 - **命令行**：
@@ -62,6 +62,15 @@ gh secret set PRIVATE_REPO_DEPLOY_KEY --repo CardFightRogue/CardFightRogue-CI < 
   ```
 
 Windows 版解压后是单个 `CardFightRogue.exe`（约 120 MB，字体和全部内容都在里面），双击即可运行，不需要安装 Godot。产物保留 14 天。
+
+macOS 版是通用版本（Intel 和 Apple 芯片都能用），下载后解压两次得到 `CardFightRogue.app`。它只有临时签名、没有经过 Apple 公证，第一次打开会被系统拦下。两种办法任选其一：
+
+- 在“访达”里按住 Control 点击应用 → 打开 → 在弹出的对话框里再点“打开”；较新的系统要到“系统设置 → 隐私与安全性”里点“仍要打开”。
+- 或者在终端里去掉下载标记：
+
+  ```bash
+  xattr -cr CardFightRogue.app
+  ```
 
 > **产物是公开的。** 任何登录了 GitHub 的人都能下载，而导出的游戏包里包含全部脚本和数据，可以被解包。
 

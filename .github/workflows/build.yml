@@ -1,6 +1,6 @@
 name: 导出试玩版
 
-# 手动触发：拉取私有仓库的代码，导出 Windows 和 Linux 的可玩版本，作为产物上传。
+# 手动触发：拉取私有仓库的代码，导出 Windows、macOS 和 Linux 的可玩版本，作为产物上传。
 # 运行：Actions 页面 → 导出试玩版 → Run workflow
 #
 # 注意：本仓库是公开的。产物任何登录了 GitHub 的人都能下载，
@@ -35,7 +35,7 @@ jobs:
         id: src
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      # 导出模板的完整包有 1.2 GB，只取用得到的三个文件并缓存起来
+      # 导出模板的完整包有 1.2 GB，只取用得到的几个文件并缓存起来
       - name: 读取缓存的 Godot 和导出模板
         id: cache
         uses: actions/cache@v6
@@ -43,7 +43,7 @@ jobs:
           path: |
             ~/godot-bin
             ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-windows-linux-v1
+          key: godot-${{ env.GODOT_VERSION }}-windows-macos-linux-v1
 
       - name: 下载 Godot 和导出模板
         if: steps.cache.outputs.cache-hit != 'true'
@@ -64,6 +64,7 @@ jobs:
             templates/windows_release_x86_64.exe \
             templates/windows_release_x86_64_console.exe \
             templates/linux_release.x86_64 \
+            templates/macos.zip \
             -d "$dest"
           rm templates.tpz
           ls -la "$dest"
@@ -97,11 +98,25 @@ jobs:
           godot --headless --path . --export-release "Windows Desktop" build/windows/CardFightRogue.exe
           test -s build/windows/CardFightRogue.exe
 
+      - name: 导出 macOS 版
+        run: |
+          mkdir -p build/macos
+          godot --headless --path . --export-release "macOS" build/macos/CardFightRogue.zip
+          test -s build/macos/CardFightRogue.zip
+
       - name: 上传 Windows 版
         uses: actions/upload-artifact@v7
         with:
           name: CardFightRogue-windows-${{ steps.src.outputs.sha }}
           path: build/windows/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: 上传 macOS 版
+        uses: actions/upload-artifact@v7
+        with:
+          name: CardFightRogue-macos-${{ steps.src.outputs.sha }}
+          path: build/macos/
           retention-days: 14
           if-no-files-found: error
 
