@@ -1,6 +1,6 @@
 name: 测试
 
-# 拉取私有仓库 CardFightRogue/CardFightRogue 的代码，用 Godot 无界面运行三个测试。
+# 拉取私有仓库 CardFightRogue/CardFightRogue 的代码，用 Godot 无界面运行全部测试。
 # 用私有仓库的只读 deploy key 拉取代码；私钥存在本仓库的密钥 PRIVATE_REPO_DEPLOY_KEY 里（见 README）。
 #
 # 注意：本仓库是公开的，运行日志任何人都能看到。
@@ -60,3 +60,10 @@ jobs:
 
       - name: 冒烟测试
         run: godot --headless --path . -s tests/smoke.gd
+
+      # 在同一台机器上起主机和客户端两个进程，走真实的网络路径
+      - name: 联机测试（主机玩战士）
+        run: godot --headless --path . -s tests/net_smoke.gd -- host warrior
+
+      - name: 联机测试（主机玩牌手）
+        run: godot --headless --path . -s tests/net_smoke.gd -- host card
